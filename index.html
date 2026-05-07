@@ -71,7 +71,94 @@ try{var startApplication=function(){require(["Loggers","Loggers.Configuration.SC
 </script>
 
 
-<script src="https://converse.microcast.ai/embed/9bc64065-350f-4114-8e24-001c7641fc34.js" defer></script>
+<script>
+(() => {
+  const REAL_ORIGIN = 'https://www.onedecksports.com';
+
+  function getFixedHref(rawHref) {
+    if (!rawHref) return null;
+
+    const href = rawHref.trim();
+
+    if (
+      !href ||
+      href.startsWith('#') ||
+      href.startsWith('javascript:') ||
+      href.startsWith('mailto:') ||
+      href.startsWith('tel:')
+    ) {
+      return null;
+    }
+
+    // Root-relative path on Mizuno
+    if (href.startsWith('/')) {
+      return REAL_ORIGIN + href;
+    }
+
+    // Already a full usa.mizuno.com URL
+    try {
+      const url = new URL(href, window.location.href);
+      if (url.hostname === 'www.onedecksports.com') {
+        return url.href;
+      }
+    } catch (e) {}
+
+    return null;
+  }
+
+  function patchLink(link) {
+    const fixedHref = getFixedHref(link.getAttribute('href'));
+    if (!fixedHref) return;
+
+    link.setAttribute('href', fixedHref);
+    link.setAttribute('target', '_top');
+    link.setAttribute('rel', 'noopener noreferrer');
+  }
+
+  function patchAllLinks(root = document) {
+    root.querySelectorAll('a[href]').forEach(patchLink);
+  }
+
+  // Initial pass
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => patchAllLinks());
+  } else {
+    patchAllLinks();
+  }
+
+  // Patch links added later
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType !== 1) continue;
+
+        if (node.matches && node.matches('a[href]')) {
+          patchLink(node);
+        } else if (node.querySelectorAll) {
+          patchAllLinks(node);
+        }
+      }
+    }
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true
+  });
+
+  // Force navigation on click too
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href]');
+    if (!link) return;
+
+    const fixedHref = getFixedHref(link.getAttribute('href'));
+    if (!fixedHref) return;
+
+    e.preventDefault();
+    window.top.location.href = fixedHref;
+  }, true);
+})();
+</script>
 
 
 
